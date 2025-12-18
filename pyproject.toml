@@ -1,0 +1,88 @@
+[project]
+name = "agreements-violence"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+
+# Mandatory dependencies
+dependencies = [
+    "pandas>=2.0.0,<3.0.0",
+    "numpy>=2.3.2,<3",
+    "matplotlib>=3.10.5,<4",
+    "seaborn>=0.13.2,<0.14",
+    "statsmodels>=0.14.5,<0.15",
+    "linearmodels>=6.1,<7",
+    "scikit-learn>=1.7.1,<2",
+    "pycountry>=24.6.1,<25",
+    "openpyxl>=3.1.5,<4",
+    "pyreadstat>=1.3.0,<2",
+    "pyarrow>=16.0.0,<17.0.0",
+    "country_converter>=1.3.1,<2",
+    "plotly>=6.3.0,<7",
+    "geopandas>=1.1.1,<2",
+    "geodatasets>=2024.8.0,<2025",
+    "geopy>=2.4.1,<3",
+    "svgutils>=0.3.4,<0.4",
+    "pip>=25.2,<26",
+    "panelsplit>=1.0.2,<2",
+    "stata-setup>=0.1.3",
+    "upsetplot>=0.9.0",
+    "matplotlib-venn>=1.1.2",
+]
+
+# Development dependencies
+[dependency-groups]
+dev = [
+    # Defaults
+    "pre-commit==4.2.0",
+    "ruff==0.11.13",
+    "sqlacodegen[pgvector,geoalchemy2]>=3.0.0,<4.0.0",
+    "ipykernel",
+    # Add more below as needed
+    "jupyter>=1.1.1,<2",
+]
+
+############################################################
+# Ruff
+[tool.ruff]
+target-version    = "py311"                         # prod runtime
+line-length       = 100                             # a bit wider than Black
+indent-width      = 4                               # classic PEP 8 width
+src               = ["src", "flows"]                # source code dirs
+respect-gitignore = true                            # don't lint ignored files
+
+fix          = true     # enable `ruff --fix` w/out CLI flag
+unsafe-fixes = false    # keep the dangerous refactors opt-in
+
+extend-exclude = [
+    "datamgmt",
+    "**/*.ipynb",
+]
+
+[tool.ruff.lint]
+select = [
+  "F",    # Pyflakes - real bugs & unused imports
+  "I",    # isort - deterministic import order
+  "N",    # pep8-naming - snake_case / CamelCase police
+  "B",    # flake8-bugbear - mutables, needless excepts
+  "C4",   # flake8-comprehensions - pointless comps etc.
+  "SIM",  # flake8-simplify - collapse nested ifs, etc.
+  "C90",  # mccabe - cyclomatic complexity watchdog
+  "T",    # flake8-tidy-imports - unused imports, etc.
+  "UP",   # flake8-undefined-variables - undefined variables
+]
+
+extend-select = ["E501"]   # long-line guard syncs with line-length
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # ignore unused imports in __init__.py files
+
+[tool.ruff.format]
+indent-style              = "space"
+quote-style               = "double"
+line-ending               = "auto"
+docstring-code-format     = true
+skip-magic-trailing-comma = false
+preview                   = false
+
