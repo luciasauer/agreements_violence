@@ -1,0 +1,8 @@
+# Ignore everything in the data folder
+data/
+*.csv
+*.xlsx
+*.xls
+*.tex
+*.pdf
+*.
