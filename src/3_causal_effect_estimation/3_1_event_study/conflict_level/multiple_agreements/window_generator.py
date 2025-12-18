@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 np.random.seed(42)
 
@@ -211,7 +211,7 @@ class WindowGenerator:
             None
         """
         #generate a dictionary with control_windows window_id as keys and a 0 as values
-        control_windows_usage = {window_id:0 for window_id in df.window_id.unique()}
+        control_windows_usage = dict.fromkeys(df.window_id.unique(), 0)
         final_control_windows = []
         treated_window_id_with_controls = []
         treated_window_ids_with_no_controls = []

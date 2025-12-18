@@ -1,0 +1,1 @@
+"""Multiple agreements analysis module."""
