@@ -6,3 +6,4 @@ data/
 *.tex
 *.pdf
 *.
+.DS_Store
