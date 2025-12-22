@@ -29,6 +29,7 @@ dependencies = [
     "stata-setup>=0.1.3",
     "upsetplot>=0.9.0",
     "matplotlib-venn>=1.1.2",
+    "xlrd>=2.0.2",
 ]
 
 # Development dependencies
