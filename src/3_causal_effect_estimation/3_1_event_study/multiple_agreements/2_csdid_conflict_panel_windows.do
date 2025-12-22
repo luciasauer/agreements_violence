@@ -23,11 +23,11 @@ clear all
 set more off
 
 local treatment "ceasfire_agreements_mentions"
+local matching_method "knn"
 local indir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/conflict_level/windows/"
 local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/src/4_results/event_study/conflict_level"
 
-
-import delimited "`indir'/conflict_windows_randommatching_`treatment'.csv", clear
+import delimited "`indir'/conflict_windows_`matching_method'_matching_`treatment'.csv", clear
 
 replace is_treated_window = is_treated_window * 18
 replace window_t = window_t+18

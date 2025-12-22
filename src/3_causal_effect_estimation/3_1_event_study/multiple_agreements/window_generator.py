@@ -1,3 +1,4 @@
+from typing import Literal
 import pandas as pd
 import numpy as np
 
@@ -23,7 +24,6 @@ class WindowGenerator:
         self.unit_column = unit_column
         self.time_column = time_column
         self.treatment_column = treatment_column #specify that it must be 0 or 1 column with non nulls
-        # self.matching_column
 
         assert len(frame_size) == 2, "frame_size should be a tuple of (int, int)"
         for col in [unit_column, time_column, treatment_column]:
@@ -48,15 +48,24 @@ class WindowGenerator:
         
         self.treated_windows =  df_treated_windows.assign(is_treated_window=1).copy()
     
-    def generate_control_windows_random_matching(self, buffer_size:tuple, k:int, t:int, exclude_treated_units:bool=False) -> None:
+    def generate_control_windows(self, 
+                                 buffer_size:tuple, 
+                                 k:int, 
+                                 t:int, 
+                                 matching_method: Literal['random', 'knn'],
+                                 matching_params: dict | None = None,
+                                 exclude_treated_units:bool=False) -> None:
         '''
         1) Get all windows that match frame size and buffer size conditions
         2) Check buffer conditions and filter windows
         3) Check control windows continuity
-        4) For each treated window, randomly sample K control window's up to T times each
+        4) Match control windos with treated ones. 
+            - Random Matching: For each treated window, randomly sample K control window's up to T times each
+            - KNN Matching: For each treated window, find K nearest control windows based on matching_column (up to T times each)
+
 
         k: number of control windows to sample per treated window
-        t: number of times to sample k control windows per treated window
+        t: number of times a control window can be used (sampling with/without replacement) 
         exclude_treated_units: whether to exclude treated units from control windows generation
 
         '''
@@ -68,18 +77,32 @@ class WindowGenerator:
                                                                     max_aggreements_in_buffer=0
                                                                     )
         df_control_windows = self._check_continous_time_windows(df_buffered_windows)
-        df_final_control_windows = self._randomly_match_control_windows(df=df_control_windows, k=k, t=t)
-        df_final_control_windows = self._generate_window_t_column(df_final_control_windows)
+        df_control_windows = self._generate_window_t_column(df_control_windows)
+
+        # Match control windows with treated windows
+        if matching_method == 'random':
+            if matching_params:
+                print("Warning: matching_params will be ignored for random matching method.")
+            df_final_control_windows = self._randomly_match_control_windows(df=df_control_windows, 
+                                                                            k=k, 
+                                                                            t=t)
+        elif matching_method == 'knn':
+            df_final_control_windows = self._knn_match_control_windows(df=df_control_windows,
+                                                                      k=k, 
+                                                                      t=t, 
+                                                                      **matching_params
+                                                                      )
+        else:
+            raise ValueError("Invalid matching method. Choose 'random' or 'knn'.")
+        
 
         self.control_windows = df_final_control_windows.assign(is_treated_window=0).copy()
 
         self.combined_windows = pd.concat([self.treated_windows, self.control_windows], ignore_index=True)
 
 
-        # window_t
 
-
-    def _generate_windows(self, filter_at_value:int, exclude_treated_units=False) -> None:
+    def _generate_windows(self, filter_at_value:int, exclude_treated_units=False) -> pd.DataFrame:
         """Generate windows of frame size + 1 (including central observation, either treatment or moment 
         zero of control)
         Also, assigns window_id to each generated window, as a combination of unit + _ + time columns.
@@ -124,7 +147,7 @@ class WindowGenerator:
             print("=== Potential Windows Generation Summary ===")
             print("---> Total possible windows found:", len(self.df.loc[self.df[self.treatment_column]==filter_at_value]))
             print(f"---> Excluded {len(units_and_times_not_eligible)} units/times due to insufficient data (frame size requirement).")
-            print("---> Excluded windw_id's (unit_time):", units_and_times_not_eligible)
+            print("---> Excluded windw_id's (unit_time):", units_and_times_not_eligible) #TODO
             print(f"Generated {len(windows)} windows.")
         else:
             raise "No windows generated. Check data and frame size."
@@ -139,12 +162,12 @@ class WindowGenerator:
         """Filter windows to meet buffer criteria
 
         Args:
-            df (pd.DataFrame): dataframe with windows of frame size
-            buffer_size (tuple): size of buffer before and after treatment/moment zero (int, int).
-            max_aggreements_in_buffer (int): maximum allowed treatments within buffer (1 for treated, 0 for control)
+            df (pd.DataFrame): dataframe with windows
+            buffer_size (tuple): number of time points without intervention around time zero (pre, post).
+            max_aggreements_in_buffer (int): maximum allowed treatments within buffer (1 for treated, 0 for control)  #TODO
 
         Returns:
-            pd.DataFrame: dataframe with windows that meet buffer criteria.
+            pd.DataFrame: dataframe with the windows that meet buffer criteria.
         """
         time_zero = df['window_id'].str.split('_').str[1].astype(int)
         df = df.assign(time_zero=time_zero)
@@ -155,11 +178,11 @@ class WindowGenerator:
         )
         
         # Sum treatments within buffer per window
-        buffer_sums = (df.loc[df['in_buffer']]
+        buffer_sums = (df.loc[df['in_buffer']] #TODO exclude time zero? and remove max_agreements_in_buffer accordingly
                        .groupby('window_id')[self.treatment_column]
                        .sum()
         )
-        valid_window_ids = buffer_sums[buffer_sums <= max_aggreements_in_buffer].index
+        valid_window_ids = buffer_sums[buffer_sums <= max_aggreements_in_buffer].index #TODO buffer_sums==0
 
         df_valid = df[df['window_id'].isin(valid_window_ids)].copy()
 
@@ -181,17 +204,16 @@ class WindowGenerator:
             df (pd.DataFrame): dataframe with windows that meet frame and buffer sizes. 
 
         Returns:
-            pd.DataFrame: _description_
+            pd.DataFrame: dataframe with windows that are continous in time.
         """
         summary = df.groupby('window_id')[self.time_column].agg(['min', 'max', 'count'])
         summary['is_continuous'] = (summary['max'] - summary['min'] + 1) == summary['count']
 
-        valid_ids = summary.loc[summary['is_continuous']].index
-        df_valid = df[df['window_id'].isin(valid_ids)].copy()
+        valid_window_ids = summary.loc[summary['is_continuous']].index
+        df_valid = df[df['window_id'].isin(valid_window_ids)].copy()
 
         print("=== Windows Continuity Checking Summary ===")
-        print(f"Generated {len(valid_ids)} valid continuous windows.")
-
+        print(f"Generated {len(valid_window_ids)} valid continuous windows.")
         return df_valid
     
     
@@ -210,7 +232,7 @@ class WindowGenerator:
         Returns:
             None
         """
-        #generate a dictionary with control_windows window_id as keys and a 0 as values
+        #generate a dictionary of control_windows, with window_id as keys and 0 as values
         control_windows_usage = {window_id:0 for window_id in df.window_id.unique()}
         final_control_windows = []
         treated_window_id_with_controls = []
@@ -223,7 +245,7 @@ class WindowGenerator:
                 treated_window_ids_with_no_controls.append(treated_window_id)
                 continue
             elif len(available_control_windows) < k:
-                print(f"Not enough control windows available to sample {k} for treated window {treated_window_id}. Available: {len(available_control_windows)}")
+                print(f"Not enough control windows available for treated window {treated_window_id}. Available: {len(available_control_windows)} less than k={k}.")
                 sampled_control_windows = available_control_windows
             else:
                 sampled_control_windows = np.random.choice(available_control_windows, size=k, replace=False)
@@ -243,6 +265,123 @@ class WindowGenerator:
         else:
             raise "No control windows matched. Check parameters k and t."
     
+    def _knn_match_control_windows(self, 
+                                   df:pd.DataFrame, 
+                                   k:int, 
+                                   t:int, 
+                                   matching_columns:list[str],
+                                   distance_threshold:float) -> None:
+        """KNN match treated windows with control windows based on matching_column.
+        
+        1) Generate a counter for control windows usage
+        2) For each treated window, find k nearest control windows based on matching_column
+              (those that have been used less than t times)
+
+        Args:
+            df (pd.DataFrame): dataframe with valid control windows possible to match.
+            k (int): number of control windows to sample per treated window.
+            t (int): maximum number of times a control window can be used.
+
+        Returns:
+            None
+        """
+
+        '''
+        DONE Generate empty counter
+        DONE check matching column has no nans
+        1) Iterar por cada treated window
+            DONE - filtrar por los controles available
+            - computar distancias noramlizadas en matching column entre momento 0 de treated y los controles
+            - filtrar por las distancias menores o iguales a distance_knn (threshold)
+            - quedarse con los k controles mas cercanos dentro 
+            - actualizar el contador
+            - asignar matched_treated_window_id
+        2) Concatenar todos los controles seleccionados
+        3) Devolver dataframe de controles
+        4) Manejar casos en los que no hay controles disponibles o no hay controles dentro
+        
+        '''
+        # Check missing values in matching column
+        control_windows_with_missing_matching_col = df.loc[(df['window_t']==0) & (df[matching_columns].isna().any(axis=1)), 'window_id'].unique().tolist()
+        if len(control_windows_with_missing_matching_col) > 0:
+            print(f"Warning: The following control windows have missing values in some matching columns '{matching_columns}' and will be excluded from matching: {len(control_windows_with_missing_matching_col)}")
+            df = df[~df['window_id'].isin(control_windows_with_missing_matching_col)].copy()   
+        
+        treated_windows_with_missing_matching_col = self.treated_windows.loc[(self.treated_windows['window_t']==0) & (self.treated_windows[matching_columns].isna().any(axis=1)), 'window_id'].unique().tolist()
+        if len(treated_windows_with_missing_matching_col) > 0:
+            print(f"Warning: The following treated windows have missing values in some matching columns '{matching_columns}' and will be excluded from matching: {len(treated_windows_with_missing_matching_col)}")
+            self.treated_windows = self.treated_windows[~self.treated_windows['window_id'].isin(treated_windows_with_missing_matching_col)].copy()
+
+        #Generate matching_columns normalized 
+        for col in matching_columns:
+            col_min = min(df[col].min(), self.treated_windows[col].min())
+            col_max = max(df[col].max(), self.treated_windows[col].max())
+            df[f'{col}_norm'] = (df[col] - col_min) / (col_max - col_min)
+            self.treated_windows[f'{col}_norm'] = (self.treated_windows[col] - col_min) / (col_max - col_min)
+
+        matching_columns_norm = [f'{col}_norm' for col in matching_columns]
+        
+        # Generate empty counter
+        control_windows_usage = {window_id:0 for window_id in df.window_id.unique()}
+        final_control_windows = []
+        treated_window_id_with_controls = []
+        treated_window_ids_with_no_controls = []
+        for treated_window_id in self.treated_windows.window_id.unique():
+            available_control_windows = [wid for wid, usage in control_windows_usage.items() if usage < t]
+            if len(available_control_windows) == 0:
+                print(f"No more control windows available to sample for treated window {treated_window_id}. Skipping.")
+                treated_window_ids_with_no_controls.append(treated_window_id)
+                continue
+
+            possible_controls_match_col_values = (df.loc[(df['window_id'].isin(available_control_windows)) &
+                                                (df['window_t']==0), 
+                                                ["window_id"] + matching_columns_norm].copy()
+            )
+            treated_match_col_values = (self.treated_windows.loc[(self.treated_windows['window_id']==treated_window_id) &
+                                                        (self.treated_windows['window_t']==0), 
+                                                        matching_columns_norm].values)
+
+            #Compute the normalized euclidean distance between treated and control windows
+            possible_controls_match_col_values['norm_distance'] = self._compute_normalized_euclidean_distance(
+                controls_matching_vals=possible_controls_match_col_values[matching_columns_norm].values,
+                treated_matching_vals=treated_match_col_values,
+                nbr_matching_cols=len(matching_columns_norm)
+            )
+            #Filter by distance threshold
+            possible_controls_match_col_values = possible_controls_match_col_values[
+                possible_controls_match_col_values['norm_distance'] <= distance_threshold
+            ]
+            if len(possible_controls_match_col_values) == 0:
+                print(f"No control windows within distance threshold for treated window {treated_window_id}. Skipping.")
+                treated_window_ids_with_no_controls.append(treated_window_id)
+                continue
+            #Get k nearest control windows
+            possible_controls_match_col_values = possible_controls_match_col_values.sort_values('norm_distance')
+            if len(possible_controls_match_col_values) < k:
+                print(f"Not enough control windows within distance threshold for treated window {treated_window_id}. Available: {len(possible_controls_match_col_values)} less than k={k}.")
+                selected_control_window_ids = possible_controls_match_col_values['window_id'].values
+            else:
+                selected_control_window_ids = possible_controls_match_col_values['window_id'].values[:k]
+            
+            for selected_control_window_id in selected_control_window_ids:
+                control_windows_usage[selected_control_window_id] += 1
+                control_window_data = df[df['window_id']==selected_control_window_id].copy()
+                control_window_data['matched_treated_window_id'] = treated_window_id
+                final_control_windows.append(control_window_data)
+            treated_window_id_with_controls.append(treated_window_id)
+
+        if len(final_control_windows) == 0:
+            raise "No control windows matched. Check parameters k, t, and distance_threshold."
+        
+        print(f"Treated windows with matched controls: {len(treated_window_id_with_controls)}")
+        print(f"Treated windows with NO matched controls: {len(treated_window_ids_with_no_controls)}. Drop from treated dataset.")
+        self.treated_windows = self.treated_windows[~self.treated_windows['window_id'].isin(treated_window_ids_with_no_controls)].copy()
+        #Drop normalized columns from df
+        df.drop(columns=matching_columns_norm, inplace=True)
+        self.treated_windows.drop(columns=matching_columns_norm, inplace=True)
+        return pd.concat(final_control_windows, ignore_index=True)
+
+    
     def _generate_window_t_column(self, df:pd.DataFrame) -> pd.DataFrame:
         """Generate window_t column indicating time relative to treatment/moment zero.
 
@@ -257,3 +396,19 @@ class WindowGenerator:
         df['window_t'] = df[self.time_column] - df['time_zero']
         df.drop(columns=['time_zero'], inplace=True)
         return df
+    
+
+    @staticmethod
+    def _compute_normalized_euclidean_distance(controls_matching_vals:np.ndarray, 
+                                               treated_matching_vals:np.ndarray, 
+                                               nbr_matching_cols:int) -> np.ndarray:
+        """Compute normalized Euclidean distance between control windows and treated window.
+        Args:
+            controls_matching_vals (np.ndarray): array of shape (n_controls, n_matching_columns) with matching columns values for control windows.
+            treated_matching_vals (np.ndarray): array of shape (n_matching_columns,) with matching columns values for treated window.
+            nbr_matching_cols (int): number of matching columns.
+        Returns:
+            np.ndarray: array of shape (n_controls,) with normalized Euclidean distances.
+        """
+        normalized_distances = np.linalg.norm(controls_matching_vals - treated_matching_vals, axis=1) / np.sqrt(nbr_matching_cols)
+        return normalized_distances
