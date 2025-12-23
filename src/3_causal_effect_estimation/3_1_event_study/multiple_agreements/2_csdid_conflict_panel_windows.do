@@ -23,11 +23,19 @@ clear all
 set more off
 
 local treatment "ceasfire_agreements_mentions"
-local matching_method "knn"
-local indir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/conflict_level/windows/"
-local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/src/4_results/event_study/conflict_level"
+local matching_method "knn_matching"
+local matching_variable "log_best_lag1_gdp_pc_current_usd_lag1"
+local indir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/conflict_level/windows"
+local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/src/4_results/event_study/conflict_level/`matching_method'"
 
-import delimited "`indir'/conflict_windows_`matching_method'_matching_`treatment'.csv", clear
+* if matching_variable is empty conflict_windows_`matching_method'_`treatment'.csv
+
+if strlen("`matching_variable'") == 0 {
+    import delimited "`indir'/conflict_windows_`matching_method'_`treatment'.csv", clear
+}
+else {
+    import delimited "`indir'/conflict_windows_`matching_method'_`matching_variable'_`treatment'.csv", clear
+}
 
 replace is_treated_window = is_treated_window * 18
 replace window_t = window_t+18
@@ -72,7 +80,14 @@ csdid_plot, group(`grp') ///
     `plot_style' ///
     name(g_main, replace)
 
-graph export "`outdir'/eventstudy_`treatment'.pdf", as(pdf) replace name(g_main)
+if "`matching_variable'" == "" {
+    graph export "`outdir'/`treatment'/eventstudy_`treatment'.png", as(png) replace name(g_main)
+}
+else {
+    graph export "`outdir'/`matching_variable'/`treatment'/eventstudy_`treatment'.png", as(png) replace name(g_main)
+}
+
+
 
 * Display aggregated ATT (overall average treatment effect)
 estat simple, wboot
@@ -117,9 +132,17 @@ foreach lvl of local levels {
 graph combine g_low g_high, cols(2) xcommon ycommon ///
     imargin(zero) ///
     graphregion(fcolor(white))
+
+	
+if "`matching_variable'" == "" {
+	graph export "`outdir'/`treatment'/eventstudy_`treatment'_low_high.png", as(png) replace
+}
+else {
+    graph export "`outdir'/`matching_variable'/`treatment'/eventstudy_`treatment'_low_high.png", as(png) replace
+}
+
 	
 
-graph export "`outdir'/eventstudy_`treatment'_low_high.pdf", as(pdf) replace
 
 
 
@@ -174,5 +197,12 @@ graph combine `graphlist', rows(2) cols(3) xcommon ycommon ///
     graphregion(fcolor(white)) ///
     name(g_mechs, replace)
 
-graph export "`outdir'/eventstudy_`treatment'_mechanisms.pdf", as(pdf) replace
+
+if "`matching_variable'" == "" {
+	graph export "`outdir'/`treatment'/eventstudy_`treatment'_mechanisms.png", as(png) replace
+}
+else {
+    graph export "`outdir'/`matching_variable'/`treatment'/eventstudy_`treatment'_mechanisms.png", as(png) replace
+}
+
 
