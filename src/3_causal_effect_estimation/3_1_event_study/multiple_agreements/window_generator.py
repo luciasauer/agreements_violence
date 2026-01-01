@@ -2,7 +2,8 @@ from typing import Literal
 import pandas as pd
 import numpy as np
 
-np.random.seed(42)
+SEED = 42
+np.random.seed(SEED)
 
 class WindowGenerator:
     '''
@@ -24,6 +25,8 @@ class WindowGenerator:
         self.unit_column = unit_column
         self.time_column = time_column
         self.treatment_column = treatment_column #specify that it must be 0 or 1 column with non nulls
+        self.rng = np.random.default_rng(SEED)
+
 
         assert len(frame_size) == 2, "frame_size should be a tuple of (int, int)"
         for col in [unit_column, time_column, treatment_column]:
@@ -248,7 +251,7 @@ class WindowGenerator:
                 print(f"Not enough control windows available for treated window {treated_window_id}. Available: {len(available_control_windows)} less than k={k}.")
                 sampled_control_windows = available_control_windows
             else:
-                sampled_control_windows = np.random.choice(available_control_windows, size=k, replace=False)
+                sampled_control_windows = self.rng.choice(available_control_windows, size=k, replace=False)
             
             for sampled_control_window_id in sampled_control_windows:
                 control_windows_usage[sampled_control_window_id] += 1
