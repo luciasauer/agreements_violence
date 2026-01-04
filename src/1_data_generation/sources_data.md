@@ -15,8 +15,8 @@
 
 ## **First Set of Instruments: UN General Assembly Voting Similarity**
 
-
-
+- UN Security Council Members Data: DPPA-SCMEMBERSHIP.csv https://psdata.un.org/dataset/DPPA-SCMembership
+- UNGA voting data: https://digitallibrary.un.org/record/4060887?ln=en
 
 ## **Second Set of Instruments: Regional Peace Agreement Spillovers**
 
@@ -25,3 +25,5 @@ tries within the same region or subregion, excluding the focal country.
 
 - **Distances** between countries: CEPII GeoDist https://www.cepii.fr/cepii/en/bdd_modele/bdd_modele_item.asp?id=6
 - **Trade volumes**: CEPII BACI HS92 (1995-2023) https://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37
+
+- UCDP External Support: at triad-level
