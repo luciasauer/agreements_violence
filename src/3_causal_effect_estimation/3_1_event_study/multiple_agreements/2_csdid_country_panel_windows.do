@@ -200,7 +200,9 @@ csdid_plot, group(`grp') ///
 graph export "`outdir'/`treatment'/eventstudy_baseline.png", ///
     as(png) replace name(g_base)
 
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
+
 _collect_simple `fh' "baseline_no_controls"
 
 *******************************************************************
@@ -220,10 +222,10 @@ csdid_plot, group(`grp') ///
 graph export "`outdir'/`treatment'/eventstudy_gdp_6lags.png", ///
     as(png) replace name(g_gdp_lags6)
 
-estat simple, wboot
 
 * ---- Store results (GDP 6 lags)
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
 _collect_simple `fh' "gdp_controls_6lags"
 
 *******************************************************************
@@ -243,10 +245,10 @@ csdid_plot, group(`grp') ///
 graph export "`outdir'/`treatment'/eventstudy_gdp_ma6.png", ///
     as(png) replace name(g_gdp_ma6)
 
-estat simple, wboot
 
 * ---- Store results (GDP MA6)
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
 _collect_simple `fh' "gdp_control_ma6"
 
 *******************************************************************
@@ -266,10 +268,11 @@ csdid_plot, group(`grp') ///
 graph export "`outdir'/`treatment'/eventstudy_gdp_base.png", ///
     as(png) replace name(g_gdp_base)
 
-estat simple, wboot
+*estat simple, wboot
 
 * ---- Store results (GDP base)
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
 _collect_simple `fh' "gdp_control_base_period"
 
 *******************************************************************
@@ -289,10 +292,10 @@ csdid_plot, group(`grp') ///
 graph export "`outdir'/`treatment'/eventstudy_control_y_base.png", ///
     as(png) replace name(g_y_base)
 
-estat simple, wboot
 
 * ---- Store results (control y_base)
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
 _collect_simple `fh' "control_pre_severity_y_base"
 
 
@@ -313,10 +316,10 @@ csdid_plot, group(`grp') ///
 graph export "`outdir'/`treatment'/eventstudy_control_y_pre6.png", ///
     as(png) replace name(g_y_pre6)
 
-estat simple, wboot
 
 * ---- Store results (control y_pre6)
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
 _collect_simple `fh' "control_pre_severity_y_pre6"
 
 *******************************************************************
@@ -336,10 +339,10 @@ csdid_plot, group(`grp') ///
 graph export "`outdir'/`treatment'/eventstudy_control_y_pre_far.png", ///
     as(png) replace name(g_y_pre_far)
 
-estat simple, wboot
 
 * ---- Store results (control y_pre_far)
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
 _collect_simple `fh' "control_pre_severity_y_pre_far"
 
 
@@ -373,7 +376,8 @@ csdid_plot, group(`grp') ///
     yscale(range(-2 2)) ylabel(-2(1)2) plotregion(fcolor(white)) graphregion(fcolor(white)) ///
     name(g_base_q, replace)
 	
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
 _collect_simple `fh' "quarterly_outcome_log_best_q"
 
 graph export "`outdir'/`treatment'/eventstudy_baseline_quarterly.png", ///
@@ -402,7 +406,8 @@ csdid_plot, group(`grp') ///
     `plot_style' name(g_base_MA, replace)
 
 
-estat simple, wboot
+*estat simple, wboot
+estat cevent, window(1 18) wboot
 _collect_simple `fh' "rolling_mean_outcome_log_best_ma3"
 
 graph export "`outdir'/`treatment'/eventstudy_baseline_MA3.png", ///
