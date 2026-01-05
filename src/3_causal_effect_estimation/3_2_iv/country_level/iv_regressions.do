@@ -6,13 +6,6 @@
 /* Treatment (endog): ceasefire_agreements_mentions (0/1)          */
 /* -------------------------------------------------------------- */
 
-clear all                                       /* -------------------------------------------------------------- */
-/* AGREEMENTS AND VIOLENCE - COUNTRY PANEL                         */
-/* FE + IV (xtivreg) and First Stage (xtreg)                       */
-/* Author: Lucia Sauer                                             */
-/* Last update: 2026-01-05                                         */
-/* Treatment (endog): ceasefire_agreements_mentions (0/1)          */
-/* -------------------------------------------------------------- */
 
 clear all
 set more off
