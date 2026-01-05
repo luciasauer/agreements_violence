@@ -4,6 +4,7 @@ data/
 *.xlsx
 *.xls
 *.tex
+*.txt
 *.pdf
 *.png
 *.
