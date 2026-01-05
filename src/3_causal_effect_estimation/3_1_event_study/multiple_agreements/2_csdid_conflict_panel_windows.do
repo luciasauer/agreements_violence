@@ -205,30 +205,105 @@ estat cevent, window(1 18)
 _collect_simple `fh' "baseline_no_controls"
 
 *******************************************************************
-* 6. Estimation: GDP controls (6 lags as indepvars)
+* 6. Estimation: Baseline by low vs high pre-treatment violence
 *******************************************************************
 
-csdid log_best log_gdp_pc_current_usd_lag1-log_gdp_pc_current_usd_lag6, ///
-    ivar(window_id_num) time(window_t) gvar(is_treated_window) ///
-    dynamic(`dyn') method(dripw) cluster(isocode_num) wboot rseed(`seed')
+local levels "low_intensity high_intensity"
+local gnames "g_low g_high"
 
-estat event, window(-18 18)
+local i = 1
+foreach lvl of local levels {
 
-csdid_plot, group(`grp') ///
-    ytitle(`"`ytitle_main'"') xtitle(`"`xtitle_main'"') ///
-    `plot_style' name(g_gdp_lags6, replace)
+    local ttl = cond("`lvl'"=="low_intensity", "Low intensity", "High intensity")
+    local gnm : word `i' of `gnames'
 
-graph export "`outdir'/`treatment'/eventstudy_gdp_6lags.png", ///
-    as(png) replace name(g_gdp_lags6)
+    csdid log_best if inlist(intensity_level,"`lvl'","control"), ///
+        ivar(window_id_num) time(window_t) gvar(is_treated_window) ///
+        dynamic(`dyn') method(dripw) cluster(isocode_num) wboost rseed(`seed')
 
+    estat event, window(-`dyn' `dyn')
 
-* ---- Store results (GDP 6 lags)
-*estat simple, wboot
-estat cevent, window(1 18)
-_collect_simple `fh' "gdp_controls_6lags"
+    * ytitle only on left panel
+    local yopt = cond(`i'==1, `"ytitle(`"`ytitle_main'"')"', `"ytitle("")"')
+
+    csdid_plot, group(`grp') ///
+        `yopt' ///
+        title("`ttl'") ///
+		xtitle(`"`xtitle_main'"') ///
+        legend(off) ///
+        `plot_style' ///
+        name(`gnm', replace)
+
+    local ++i
+	estat cevent, window(1 18)
+    _collect_simple `fh' "`lvl'_intensity"
+
+}
+
+graph combine g_low g_high, cols(2) xcommon ycommon ///
+    imargin(zero) ///
+    graphregion(fcolor(white))	
+
+graph export "`outdir'/`treatment'/eventstudy_low_high.png", as(png) replace
+
 
 *******************************************************************
-* 7. Estimation: GDP control (MA6 of lags)
+* 7. Estimation: Baseline by mechanism
+*******************************************************************
+
+local mechs "is_has_info_mecha is_has_commit_pol_mecha is_has_commit_econ_mecha is_has_commit_mil_mecha is_has_cost_mecha is_has_balancing_mecha"
+
+local mech_titles `" "Info mechanism" "Political commitment" "Economic commitment" "Military commitment" "Cost mechanism" "Balancing mechanism" "'
+
+
+local j = 1
+foreach m of local mechs {
+
+    local mw "`m'_window"
+
+    * title
+    local ttl : word `j' of `mech_titles'
+
+    * graph name
+    local gname "g_mech`j'"
+
+    csdid log_best if (`mw' == 1) | (is_treated_window == 0), ///
+        ivar(window_id_num) time(window_t) gvar(is_treated_window) ///
+        dynamic(`dyn') method(dripw) cluster(isocode_num) wboost rseed(`seed')
+
+    estat event, window(-`dyn' `dyn')
+
+	* y-axis label only on left column (panels 1 and 4)
+	local yopt = cond(inlist(`j',1,4), `"ytitle(`"`ytitle_main'"')"', `"ytitle("") ylabel(none)"')
+
+	* x-axis label only on bottom row (panels 4,5,6)
+	local xopt = cond(`j'<=3, `"xtitle("") xlabel(none)"', `"xtitle("Months relative to peace agreement")"')
+
+    csdid_plot, group(`grp') ///
+		`yopt' ///
+		`xopt' ///
+		title("`ttl'") ///
+		legend(off) ///
+        `plot_style' ///
+        name(`gname', replace)
+
+    local graphlist "`graphlist' `gname'"
+
+    local ++j
+	estat cevent, window(1 18)
+    _collect_simple `fh' "`m'"
+}
+
+graph combine `graphlist', rows(2) cols(3) xcommon ycommon ///
+    imargin(zero) ///
+    graphregion(fcolor(white)) ///
+    name(g_mechs, replace)
+
+graph export "`outdir'/`treatment'/eventstudy_mechanisms.pdf", as(pdf) replace
+
+
+*******************************************************************
+* 8. Estimation: GDP control (MA6 of lags)
 *******************************************************************
 
 csdid log_best log_gdp_pc_ma6, ///
@@ -251,7 +326,7 @@ estat cevent, window(1 18)
 _collect_simple `fh' "gdp_control_ma6"
 
 *******************************************************************
-* 8. Estimation: GDP control (base-period)
+* 9. Estimation: GDP control (base-period)
 *******************************************************************
 
 csdid log_best gdp_base, ///
@@ -274,7 +349,7 @@ estat cevent, window(1 18)
 _collect_simple `fh' "gdp_control_base_period"
 
 *******************************************************************
-* 9. Estimation: Control for pre-treatment severity (y_base)
+* 10. Estimation: Control for pre-treatment severity (y_base)
 *******************************************************************
 
 csdid log_best y_base, ///
@@ -298,7 +373,7 @@ _collect_simple `fh' "control_pre_severity_y_base"
 
 
 *******************************************************************
-* 10. Estimation: Control for pre-treatment severity (y_pre6)
+* 11. Estimation: Control for pre-treatment severity (y_pre6)
 *******************************************************************
 
 csdid log_best y_pre6, ///
@@ -319,30 +394,6 @@ graph export "`outdir'/`treatment'/eventstudy_control_y_pre6.png", ///
 *estat simple, wboot
 estat cevent, window(1 18)
 _collect_simple `fh' "control_pre_severity_y_pre6"
-
-*******************************************************************
-* 11. Estimation: Control for pre-treatment severity (y_pre_far)
-*******************************************************************
-
-csdid log_best y_pre_far, ///
-    ivar(window_id_num) time(window_t) gvar(is_treated_window) ///
-    dynamic(`dyn') method(dripw) cluster(isocode_num) wboot rseed(`seed')
-
-estat event, window(-18 18)
-
-csdid_plot, group(`grp') ///
-    ytitle(`"`ytitle_main'"') xtitle(`"`xtitle_main'"') ///
-    `plot_style' name(g_y_pre_far, replace)
-
-graph export "`outdir'/`treatment'/eventstudy_control_y_pre_far.png", ///
-    as(png) replace name(g_y_pre_far)
-
-
-* ---- Store results (control y_pre_far)
-*estat simple, wboot
-estat cevent, window(1 18)
-_collect_simple `fh' "control_pre_severity_y_pre_far"
-
 
 *******************************************************************
 * 12. Aggregate windows into quarters
@@ -376,7 +427,7 @@ csdid_plot, group(`grp') ///
 	
 
 *estat simple, wboot
-estat cevent, window(1 18)
+estat cevent, window(1 6)
 _collect_simple `fh' "quarterly_outcome_log_best_q"
 
 graph export "`outdir'/`treatment'/eventstudy_baseline_quarterly.png", ///
