@@ -6,17 +6,17 @@ set more off
 
 local treatment "ceasfire_agreements_mentions"
 local matching_method "random"
-local buffer_treated_size "6_1"
+local buffer_treated_size "18_1"
 *local matching_variable "gdp_pc_current_usd_lag1"
 
 local indir  "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/conflict_level/windows"
 local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/src/4_results/event_study/conflict_level/`matching_method'_matching"
 
 if strlen("`matching_variable'") == 0 {
-    import delimited "`indir'/conflict_windows_`matching_method'_matching_`treatment'_6_1.csv", clear
+    import delimited "`indir'/conflict_windows_`matching_method'_matching_`treatment'_`buffer_treated_size'.csv", clear
 }
 else {
-    import delimited "`indir'/conflict_windows_`matching_method'_`matching_variable'_`treatment'.csv", clear
+    import delimited "`indir'/conflict_windows_`matching_method'_`matching_variable'_`treatment'_`buffer_treated_size'.csv", clear
 }
 
 * Ensure output folder exists

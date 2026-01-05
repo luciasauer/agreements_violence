@@ -7,7 +7,7 @@ set more off
 local treatment "ceasfire_agreements_mentions"
 local matching_method "random"
 *local matching_variable "gdp_pc_current_usd_lag1"
-local buffer_treated_size "6_1"
+local buffer_treated_size "18_1"
 
 local indir  "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/country_level/windows"
 local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/src/4_results/event_study/country_level/`matching_method'_matching"
