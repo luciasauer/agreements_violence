@@ -7,15 +7,16 @@ set more off
 local treatment "ceasfire_agreements_mentions"
 local matching_method "random"
 *local matching_variable "gdp_pc_current_usd_lag1"
+local buffer_treated_size "6_1"
 
 local indir  "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/country_level/windows"
 local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/src/4_results/event_study/country_level/`matching_method'_matching"
 
 if strlen("`matching_variable'") == 0 {
-    import delimited "`indir'/country_windows_`matching_method'_matching_`treatment'.csv", clear
+    import delimited "`indir'/country_windows_`matching_method'_matching_`treatment'_`buffer_treated_size'.csv", clear
 }
 else {
-    import delimited "`indir'/country_windows_`matching_method'_`matching_variable'_`treatment'.csv", clear
+    import delimited "`indir'/country_windows_`matching_method'_`matching_variable'_`treatment'_`buffer_treated_size'.csv", clear
 }
 
 * Ensure output folder exists
@@ -86,7 +87,7 @@ hist sd_y, fraction ///
     ytitle("Density") ///
     name(h_sd_y, replace)
 
-graph export "`outdir'/`treatment'/diagnostic_hist_within_window_sd_y.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/diagnostic_hist_within_window_sd_y.png", ///
     as(png) replace name(h_sd_y)
 
 *******************************************************************
@@ -100,7 +101,7 @@ twoway line sd_t window_t, ///
     xtitle("window_t") ytitle("SD of Log Fatalities") ///
     name(g_sd_by_t, replace)
 
-graph export "`outdir'/`treatment'/diagnostic_sd_by_event_time.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/diagnostic_sd_by_event_time.png", ///
     as(png) replace name(g_sd_by_t)
 restore
 
@@ -126,7 +127,7 @@ xtitle("dy6 = log_best(t=24) - log_best(base=17)") ///
 ytitle("Density") ///
 name(g_dy6_kdens, replace)
 
-graph export "`outdir'/`treatment'/diagnostic_dy6_density_treated_control.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/diagnostic_dy6_density_treated_control.png", ///
     as(png) replace name(g_dy6_kdens)
 
 * Boxplot comparativo
@@ -134,7 +135,7 @@ graph box dy6, over(is_treated_window) ///
     ytitle("dy6") ///
     name(g_dy6_box, replace)
 
-graph export "`outdir'/`treatment'/diagnostic_dy6_box_treated_control.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/diagnostic_dy6_box_treated_control.png", ///
     as(png) replace name(g_dy6_box)
 
 restore
@@ -171,7 +172,7 @@ twoway (scatter sd_y gdp_base) (lfit sd_y gdp_base), ///
     ytitle("Within-window SD of log fatalities") ///
     name(g_sdy_gdp, replace)
 
-graph export "`outdir'/`treatment'/diag_sdy_on_gdp_base.png", as(png) replace name(g_sdy_gdp)
+graph export "`outdir'/`treatment'/`buffer_treated_size'/diag_sdy_on_gdp_base.png", as(png) replace name(g_sdy_gdp)
 restore
 
 
@@ -197,7 +198,7 @@ csdid_plot, group(`grp') ///
     ytitle(`"`ytitle_main'"') xtitle(`"`xtitle_main'"') ///
     `plot_style' name(g_base, replace)
 
-graph export "`outdir'/`treatment'/eventstudy_baseline.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_baseline.png", ///
     as(png) replace name(g_base)
 
 *estat simple, wboot
@@ -246,7 +247,7 @@ graph combine g_low g_high, cols(2) xcommon ycommon ///
     imargin(zero) ///
     graphregion(fcolor(white))	
 
-graph export "`outdir'/`treatment'/eventstudy_low_high.png", as(png) replace
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_low_high.png", as(png) replace
 
 
 *******************************************************************
@@ -301,7 +302,7 @@ graph combine `graphlist', rows(2) cols(3) xcommon ycommon ///
     graphregion(fcolor(white)) ///
     name(g_mechs, replace)
 
-graph export "`outdir'/`treatment'/eventstudy_mechanisms.pdf", as(pdf) replace
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_mechanisms.pdf", as(pdf) replace
 
 *******************************************************************
 * 8. Estimation: GDP control (MA6 of lags)
@@ -317,7 +318,7 @@ csdid_plot, group(`grp') ///
     ytitle(`"`ytitle_main'"') xtitle(`"`xtitle_main'"') ///
     `plot_style' name(g_gdp_ma6, replace)
 
-graph export "`outdir'/`treatment'/eventstudy_gdp_ma6.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_gdp_ma6.png", ///
     as(png) replace name(g_gdp_ma6)
 
 
@@ -340,7 +341,7 @@ csdid_plot, group(`grp') ///
     ytitle(`"`ytitle_main'"') xtitle(`"`xtitle_main'"') ///
     `plot_style' name(g_gdp_base, replace)
 
-graph export "`outdir'/`treatment'/eventstudy_gdp_base.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_gdp_base.png", ///
     as(png) replace name(g_gdp_base)
 
 *estat simple, wboot
@@ -364,7 +365,7 @@ csdid_plot, group(`grp') ///
     ytitle(`"`ytitle_main'"') xtitle(`"`xtitle_main'"') ///
     `plot_style' name(g_y_base, replace)
 
-graph export "`outdir'/`treatment'/eventstudy_control_y_base.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_control_y_base.png", ///
     as(png) replace name(g_y_base)
 
 
@@ -388,7 +389,7 @@ csdid_plot, group(`grp') ///
     ytitle(`"`ytitle_main'"') xtitle(`"`xtitle_main'"') ///
     `plot_style' name(g_y_pre6, replace)
 
-graph export "`outdir'/`treatment'/eventstudy_control_y_pre6.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_control_y_pre6.png", ///
     as(png) replace name(g_y_pre6)
 
 
@@ -424,7 +425,7 @@ csdid log_best_q, ///
 estat event, window(-6 6)
 
 csdid_plot, group(`grp') ///
-    ytitle(`"`ytitle_main'"') xtitle(`"`xtitle_main'"') ///
+    ytitle(`"`ytitle_main'"') xtitle("Quarter to peace agreements") ///
     yscale(range(-2 2)) ylabel(-2(1)2) plotregion(fcolor(white)) graphregion(fcolor(white)) ///
     name(g_base_q, replace)
 	
@@ -432,7 +433,7 @@ csdid_plot, group(`grp') ///
 estat cevent, window(1 6) wboot
 _collect_simple `fh' "quarterly_outcome_log_best_q"
 
-graph export "`outdir'/`treatment'/eventstudy_baseline_quarterly.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_baseline_quarterly.png", ///
     as(png) replace name(g_base_q)
 
 restore
@@ -462,7 +463,7 @@ csdid_plot, group(`grp') ///
 estat cevent, window(1 18) wboot
 _collect_simple `fh' "rolling_mean_outcome_log_best_ma3"
 
-graph export "`outdir'/`treatment'/eventstudy_baseline_MA3.png", ///
+graph export "`outdir'/`treatment'/`buffer_treated_size'/eventstudy_baseline_MA3.png", ///
     as(png) replace name(g_base_MA)
 
 
@@ -475,9 +476,9 @@ list, noobs abbreviate(20)
 summ att se lb ub pval
 
 
-export excel using "`outdir'/`treatment'/csdid_estat_simple_results.xlsx", ///
+export excel using "`outdir'/`treatment'/`buffer_treated_size'/csdid_estat_simple_results_`buffer_treated_size'.xlsx", ///
     firstrow(variables) replace
 
-putexcel set "`outdir'/`treatment'/csdid_estat_simple_results.xlsx", modify
+putexcel set "`outdir'/`treatment'/`buffer_treated_size'/csdid_estat_simple_results_`buffer_treated_size'.xlsx", modify
 local last = _N + 1   // +1 por el header en la fila 1
 
