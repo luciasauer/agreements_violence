@@ -14,33 +14,17 @@ local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse
 import delimited "`indir'/country_panel.csv", clear 
 
 
-
 // Gen fatalities in previous month (we filter for this in two of the models later)
 rangestat (mean) best_prevm=best, interval(year_mo -1 -1) by(isocode)
 
 *** Generate variables ***
 **************************
 egen countryid = group(isocode)                 // Create a variable 'countryid' representing groups of 'isocode'
-gen ym = ym(year, month)                        // Create a variable 'ym' representing year-month combination from 'year' and 'month'
-tab ym, gen(ym_)                                // Generate a table of the 'ym' variable and generate new variables 'ym_' based on the table
-xtset countryid ym                                // XTSET command is best for panel data with more than one individual, (country), since it also sets the ID
+*gen ym = ym(year, month)                        // Create a variable 'ym' representing year-month combination from 'year' and 'month'
+tab year_mo, gen(year_mo_)                                // Generate a table of the 'ym' variable and generate new variables 'ym_' based on the table
+xtset countryid year_mo                                // XTSET command is best for panel data with more than one individual, (country), since it also sets the ID
 tab countryid, gen(countryid_)                  // Generate a table of the 'countryid' variable and generate new variables 'countryid_' based on the table
 
-
-
-* Several options for variable capturing "influential friends": (take average of last 12 months)
-*          influence_score == how close I am to those in security council (all not just premanent members)
-*          influence_gdp == how similar voting behavior to those in security council (weighted by GDP) (all not just permanent members)
-*          influence_veto == same as influence score, but weighting permenant members by 10 
-
-* Other IVs
-*    'n_agreement_outside_isocode':'number of agreements outside the country', 
-*    'n_agreement_outside_region':'number of agreements outside the region of the country',
-*    'n_agreement_outside_sub_region':'number of agreements outside the subregion of the country',
-*    'sc_at_war_year':'total number security council members at war that year',
-*    'sc_at_war_outside_isocode':'number of security council members at war outside of the country',
-*    'sc_at_war_outside_sub_region':'number of security council members at war outside the subregion of the country',
-*    'sc_at_war_outside_region':'number of security council members at war outside the region of the country',
 
 
 // create 18 lags of log best
@@ -57,22 +41,21 @@ forvalues i = 1/18 {
 // Create average of 3 months future fatalities
 egen fut_log_best3_m =rowmean(fut_log_best1 fut_log_best2 fut_log_best3)
 
+gen influence_veto_past_12 = L12.influence_veto
+gen influence_gdp_past_12 = L12.influence_gdp
 forvalues i = 1/12 { 
 gen lag_log_best`i'_friends = L`i'.log_best*influence_veto_past_12
 }
 
 sort isocode year_mo
 
-
 encode region, gen(region_n)
 
-bysort ym: egen otheragreement_ym=sum(agreement)
-replace otheragreement_ym=otheragreement_ym-agreement
-
+bysort year_mo: egen otheragreement_year_mo=sum(agreement)
+replace otheragreement_year_mo=otheragreement_year_mo-agreement
 
 global outcome_fe log_best // Define the single outcome variable
 global controls_fe lag_log_best1- lag_log_best6 // Define the control variables
-global outcome_future fut_log_best3_m
 
 
 *** Regressions, IV ***
@@ -85,12 +68,12 @@ global outcome_future fut_log_best3_m
 *********************************
 
 //agreement on influence_veto_past_12 (Veto and friendship UN)
-xtreg agreement_count influence_veto_past_12 $controls_fe if year >= 1990 & year <= 2022 & 	influence > 0, fe r cluster(countryid)
+xtreg agreement_count influence_veto_past_12 $controls_fe if year >= 1990 & year <= 2024 & 	influence > 0, fe r cluster(countryid)
 test influence_veto_past_12
 outreg2 using ""`indir'/first_stage.xls", replace excel bdec(3) sdec(3) slow(100) label addstat("F-stat", r(F))
 
 //agreement on influence_gdp_past_12 (GDP and friendship UN)
-xtreg agreement_count influence_gdp_past_12 $controls_fe if year >= 1990 & year <= 2022 & influence > 0, fe r cluster(countryid)
+xtreg agreement_count influence_gdp_past_12 $controls_fe if year >= 1990 & year <= 2024 & influence > 0, fe r cluster(countryid)
 test influence_gdp_past_12
 outreg2 using ""`indir'/first_stage.xls", append excel bdec(3) sdec(3) slow(100) label addstat("F-stat", r(F))
 
