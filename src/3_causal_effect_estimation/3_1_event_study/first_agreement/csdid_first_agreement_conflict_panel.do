@@ -1,37 +1,83 @@
 /*******************************************************************
 Project: Peace Agreements Effect on Conflict Intensity
 Author: Lucia Sauer
-Date: 2025-12-17
+Date: 2026-01-07
 
 Purpose:
 Estimate the causal effect of peace agreements on conflict fatalities (log_best)
 using Callaway & Sant'Anna's (2021) Difference-in-Differences estimator.
 The dataset is a panel at conflict level that spans from 1989-01 to 2024-12
 
-Treatment definition: 
+Treatment definition: agreement, all agreements 
 
 References:
 - Callaway & Sant'Anna (2021): "Difference-in-Differences with Multiple Time Periods"
 *******************************************************************/
 
-
 *Installation of csdid2 for long panels
+cap which csdid2
+if _rc{
+	net install csdid2, from("https://friosavila.github.io/stpackages")
+}
 
 
 *******************************************************************
-* 1. Import dataset and preprocessing
+* 1) Import dataset and preprocessing
 *******************************************************************
 
 clear all
 set more off
 
-import delimited ///
-"/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/conflict_level/conflict_panel.csv"
+local indir  "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/conflict_level"
+local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/src/4_results/event_study/conflict_level/first_agreement/"
+
+import delimited using "`indir'/conflict_panel.csv", bindquote(strict) maxquotedrows(unlimited)  clear
+
+xtset conflict_id year_mo_numeric
+sort conflict_id year_mo_numeric
+
+* Plot style
+local plot_style ///
+    xlabel(-`dyn'(9)`dyn') ///
+    yscale(range(-2 2)) ylabel(-2(1)2) ///
+    plotregion(fcolor(white)) graphregion(fcolor(white))
+
+local ytitle_main `"ATT on log(fatalities)"'
+local xtitle_main `"Months relative to peace agreement"'
+
+*******************************************************************
+* 2) Collector for csdid2_estat cevent, revent(1/18) wboot
+*******************************************************************
+tempname ph
+tempfile results_cevent
+
+postfile `ph' ///
+    str60 spec ///
+    double att se lb ub pval ///
+    using `results_cevent', replace
+
+capture program drop _collect_cevent_wboot
+program define _collect_cevent_wboot
+    // run immediately after: csdid2_estat cevent, revent(1/18) wboot
+    args ph specname
+
+    matrix T = r(table)
+
+    scalar att  = T[1,1]
+    scalar se   = T[2,1]
+    scalar pval = T[4,1]
+    scalar lb   = T[5,1]
+    scalar ub   = T[6,1]
+
+    post `ph' ("`specname'") (att) (se) (lb) (ub) (pval)
+end
+
 
 
 *******************************************************************
-* 2.a Estimate causal effects (CSDID) Agreements
+* 3) Estimate causal effects (CSDID) Agreements
 *******************************************************************
+
 {
 * Main specification
 * Notes:
@@ -41,231 +87,334 @@ import delimited ///
 * - dynamic(18): estimate effects up to 18 months post-treatment
 * - wboot: wild bootstrap SEs (robust to few clusters)
 * - cluster(window_id): cluster by window id (episodes)
-
-csdid2 log_best, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
-
 }
 
-
-*******************************************************************
-* 2.b Estimate causal effects (CSDID) (with controls)
-*******************************************************************
-
-* Controlling for conflict_age as year_mo - start_date, and duration_months as end_date - start_date
+*------------------------------*
+* (A) Baseline
+*------------------------------*
 {
-csdid2 log_best conflict_age duration_months, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+csdid2 log_best, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
+
+* Event study plot (wboot) + export
+estat event, window(-18 18) wboot plot
+graph rename Graph g_baseline, replace
+graph export "`outdir'/event_baseline.png", as(png) replace name(g_baseline)
+
+* Cumulative event 1..18 excluding 0 + wboot + collect
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "baseline"
 }
 
 
-* Controlling for the active_conflict_age as year_mo - start_date, and duration_months as end_date - start_date
-{
-csdid2 log_best real_observation conflict_age duration_months, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
-}
+*------------------------------*
+* (B) Age dummies
+*------------------------------*
 
-* Controlling for the conflict_age as year_mo - start_date and duration_months as end_date - start_date + region + onset_year + current_month (monthly seasonality)
-{
-csdid2 log_best conflict_age duration_months i.region_main_num i.current_month i.start_year, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
-}
-
-* Controlling for the conflict_age as year_mo - start_date and duration_months as end_date - start_date + region 
-{
-csdid2 log_best conflict_age duration_months i.region_main_num, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
-}
-
+*---Define controls 
+local conflict_age_dummies conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m
 
 * Controlling for the conflict_age as dummies 
-
 {
-csdid2 log_best conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
-}
-/*
-------------------------------------------------------------------------------
-             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
-     Pre_avg |  -.2718243   .3192359    -0.85   0.395    -.8975151    .3538666
-    Post_avg |  -.6854091     .53572    -1.28   0.201    -1.735401    .3645827
-*/
+csdid2 log_best `conflict_age_dummies', ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
+estat event, window(-18 18) wboot plot
+graph rename Graph g_age, replace
+graph export "`outdir'/event_age.png", as(png) replace name(g_age)
 
-
-{
-csdid2 log_best real_observation conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "age_dummies"
 }
 
+
+*------------------------------*
+* (C) Age dummies + region FE
+*------------------------------*
 * Controlling for the conflict_age as dummies + region 
 {
-csdid2 log_best conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m i.region_main_num, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+csdid2 log_best `conflict_age_dummies' i.region_num, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
+estat event, window(-18 18) wboot plot
+graph rename Graph g_age, replace
+graph export "`outdir'/event_age_region.png", as(png) replace name(g_age)
+
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "age_dummies_region"
 }
 
 
-* Controlling for the conflict_age as dummies + onset_year 
+*------------------------------*
+* (D) Age dummies + duration
+*------------------------------*
+
+* Controlling for the conflict_age as dummies + duration_months as end_date - start_date
 {
-csdid2 log_best conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m i.start_year, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+csdid2 log_best `conflict_age_dummies' duration_months, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
+estat event, window(-18 18) wboot plot
+graph rename Graph g_age, replace
+graph export "`outdir'/event_age_duration.png", as(png) replace name(g_age)
+
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "age_dummies_duration"
 }
 
-* Controlling for the conflict_age as dummies +  current_month to control for seasonality (this doesnt change the results because it already account for that)
+
+*------------------------------*
+* (E) Age dummies + log GDP pc
+*------------------------------*
 {
-csdid2 log_best conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m i.current_month, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+csdid2 log_best `conflict_age_dummies' log_gdp_pc_current_usd, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
+
+estat event, window(-18 18) wboot plot
+graph rename Graph g_age_gdp, replace
+graph export "`outdir'/event_age_gdp.png", as(png) replace name(g_age_gdp)
+
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "age_dummies_gdp"
 }
 
 
-* Controlling for the conflict_age as dummies + region + onset_year
+*------------------------------*
+* (F) Age dummies + GDP pc + month-of-year FE
+*     (captures seasonality in violence/reporting)
+*------------------------------*
 {
-csdid2 log_best conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m i.region_main_num i.start_year, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+csdid2 log_best `conflict_age_dummies' log_gdp_pc_current_usd i.current_month, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
+
+estat event, window(-18 18) wboot plot
+graph rename Graph g_age_gdp_m, replace
+graph export "`outdir'/event_age_gdp_monthFE.png", as(png) replace name(g_age_gdp_m)
+
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "age_dummies_gdp_monthFE"
 }
 
-/*
-------------------------------------------------------------------------------
-             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
-     Pre_avg |    .033973   .5182843     0.07   0.948    -.9818456    1.049792
-    Post_avg |  -.4815922   .5977119    -0.81   0.420    -1.653086    .6899017
-*/
 
-
-
-
-*******************************************************************
-* 2.c Estimate causal effects (CSDID) (heterogeneity)
-*******************************************************************
-
-
-/*
-
-Run results for treated conflicts with more than 1000 fatalities before 1° agreement (high_intensity=1)
-*/
-
+*------------------------------*
+* (G) Age dummies + GDP pc + month FE + country FE
+*     (absorbs time-invariant country differences)
+*------------------------------*
 {
-clear all
-set more off
+*csdid2 log_best `conflict_age_dummies' log_gdp_pc_current_usd i.current_month i.isocode_num, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
 
-import delimited ///
-"/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/peace_agreements_impulse_response/data/output/conflict_panel/conflict_panel_balanced_first_treatment_type1_18windows.csv"
-	
-keep if (treated_agreement == 0) | (high_intensity == 1)	
-csdid2 log_best conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+*estat event, window(-18 18) wboot plot
+*graph rename Graph g_age_gdp_m_cty, replace
+*graph export "`outdir'/event_age_gdp_monthFE_countryFE.png", as(png) replace name(g_age_gdp_m_cty)
+
+*csdid2_estat cevent, revent(1/18) wboot
+*_collect_cevent_wboot `ph' "age_dummies_gdp_monthFE_countryFE"
 }
 
-/*
 
-Run results for treated conflicts with less than 1000 fatalities before 1° agreement (high_intensity=0)
-*/
+*------------------------------*
+* (H) Age dummies + GDP pc + region×year FE (+ month FE)
+*     (captures regional shocks that vary by year)
+*------------------------------*
 {
-clear all
-set more off
+csdid2 log_best `conflict_age_dummies' log_gdp_pc_current_usd i.current_month i.region_num#i.year, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
 
-import delimited ///
-"/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/peace_agreements_impulse_response/data/output/conflict_panel/conflict_panel_balanced_first_treatment_type1_18windows.csv"
+estat event, window(-18 18) wboot plot
+graph rename Graph g_age_gdp_m_regyr, replace
+graph export "`outdir'/event_age_gdp_monthFE_regionXyear.png", as(png) replace name(g_age_gdp_m_regyr)
 
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "age_dummies_gdp_monthFE_regionXyear"
+}
+
+
+*------------------------------*
+* (I) Pre violence controls
+*------------------------------*
+{
+* Identify treated conflicts (first_agreement_date > 0 and not missing)
+gen byte ever_treated = (first_agreement_date < . & first_agreement_date > 0)
+
+* Relative time to first agreement (only for treated)
+gen int rel_m = year_mo_numeric - first_agreement_date if ever_treated
+
+* Helpers for pre-window (-12..-1)
+gen byte pre12 = ever_treated & inrange(rel_m, -12, -1)
+
+* For never-treated conflicts (controls), all months are "pre" by definition
+gen byte never_treated = (ever_treated==0)
+
+* --- mean/sd in pre window for treated; for controls use full sample mean/sd
+by conflict_id: egen double pre_mean12_t = mean(best) if pre12
+by conflict_id: egen double pre_sd12_t   = sd(best)   if pre12
+by conflict_id: egen double pre_zero12_t = mean(best==0) if pre12
+
+by conflict_id: egen double pre_mean12_c = mean(best) if never_treated
+by conflict_id: egen double pre_sd12_c   = sd(best)   if never_treated
+by conflict_id: egen double pre_zero12_c = mean(best==0) if never_treated
+
+gen double pre_mean12_best = pre_mean12_t
+replace pre_mean12_best = pre_mean12_c if missing(pre_mean12_best) & never_treated
+
+gen double pre_sd12_best = pre_sd12_t
+replace pre_sd12_best = pre_sd12_c if missing(pre_sd12_best) & never_treated
+
+gen double pre_share_zero12 = pre_zero12_t
+replace pre_share_zero12 = pre_zero12_c if missing(pre_share_zero12) & never_treated
+
+* log versions
+gen double log_pre_mean12 = log(pre_mean12_best + 1)
+
+* Cap extreme pre controls to reduce leverage (winsorize-like)
+egen double p99_pre = pctile(pre_mean12_best), p(99)
+replace pre_mean12_best = p99_pre if pre_mean12_best > p99_pre & p99_pre < .
+replace log_pre_mean12  = log(pre_mean12_best + 1)
+drop p99_pre
+
+local pre_violence "log_pre_mean12 pre_sd12_best pre_share_zero12"
+
+*---------------------------------------------------------------*
+* Spec: age dummies + pre-violence
+*---------------------------------------------------------------*
+{
+csdid2 log_best `conflict_age_dummies' `pre_violence', ///
+    ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) ///
+    notyet method(dripw) cluster(isocode_num)
+
+estat event, window(-18 18) wboot plot
+graph rename Graph g_age_pre_violence, replace
+graph export "`outdir'/event_age_pre_violence.png", as(png) replace name(g_age_pre_violence)
+
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "age_pre_violence"
+}
+}
+
+
+*------------------------------*
+* (J) Low/High Violence Intensity Pretreatment
+*------------------------------*
+{
+*------Low Violence Intensity	
+preserve
 keep if (treated_agreement == 0) | (high_intensity == 0)	
-csdid2 log_best conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)	
+csdid2 log_best `conflict_age_dummies', ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
+estat event, window(-18 18) wboot plot
+graph export "`outdir'/event_baseline_LOW.png", as(png) replace
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "baseline_LOW"
+restore
+
+*------High Violence Intensity	
+preserve
+keep if (treated_agreement == 0) | (high_intensity == 1)	
+csdid2 log_best `conflict_age_dummies', ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_num)
+estat event, window(-18 18) wboot plot
+graph export "`outdir'/event_baseline_HIGH.png", as(png) replace
+csdid2_estat cevent, revent(1/18) wboot
+_collect_cevent_wboot `ph' "baseline_HIGH"
+restore
 }
 
-*******************************************************************
-* 2.d Estimate causal effects (CSDID) (aggregate bin lead/lags)
-*******************************************************************
 
+*------------------------------*
+* (K) QUARTERLY PANEL 
+*------------------------------*
 {
-clear all
-set more off
+preserve
 
-import delimited ///
-"/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/peace_agreements_impulse_response/data/output/conflict_panel/conflict_panel_balanced_first_treatment_type1_18windows.csv"
-csdid2 log_best conflict_age_less_6m conflict_age_less_12m conflict_age_less_18m conflict_age_less_24m conflict_age_less_30m, ivar(conflict_id) tvar(year_mo_numeric) gvar(first_agreement_date) notyet method(dripw) cluster(isocode_main_num)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot	
-}
+* Convert month index (1989-01 = 1) -> Stata monthly %tm
+local base_tm = tm(1989m1)
+cap drop ym_tm start_tm agree_tm
+gen int ym_tm    = `base_tm' + (year_mo_numeric - 1)
+gen int start_tm = `base_tm' + (start_date_numeric - 1)
+gen int agree_tm = `base_tm' + (first_agreement_date - 1) if first_agreement_date<.
+format ym_tm start_tm agree_tm %tm
 
-estat event, window(-18 18) post
+* Build quarterly time
+cap drop qtr first_agreement_q
+gen int qtr = qofd(dofm(ym_tm))
+format qtr %tq
 
-* Example syntax (adapted to your case):
-matrix b = e(b)
-matrix V = e(V)
+gen int first_agreement_q = qofd(dofm(agree_tm)) if agree_tm<.
+format first_agreement_q %tq
+* Collapse to conflict_id x isocode x quarter
+collapse ///
+    (sum) best ///
+    (mean) log_gdp_pc_current_usd ///
+    (first) region_num ///
+    (first) first_agreement_q ///
+    (first) start_tm ///
+    , by(conflict_id isocode_num qtr)
 
-* Select coef and elements from var and cov matrix
-matrix b_clean = b[1, 1..36]
-matrix V_clean = V[1..36, 1..36]
+* Outcome quarterly
+gen double log_best_q = log(best + 1)
 
-* Pre-lejano (-18 a -12)
-lincom (1/7)*(_b[event__-18] + _b[event__-17] + _b[event__-16] + ///
-              _b[event__-15] + _b[event__-14] + _b[event__-13] + _b[event__-12])
+* Panel
+xtset conflict_id qtr
+sort conflict_id qtr
 
-* Pre-cercano (-11 a -1)
-lincom (1/11)*(_b[event__-11] + _b[event__-10] + _b[event__-9] + _b[event__-8] + ///
-               _b[event__-7] + _b[event__-6] + _b[event__-5] + _b[event__-4] + ///
-               _b[event__-3] + _b[event__-2] + _b[event__-1])
-
-* Post-inmediato (0 a 5)
-lincom (1/6)*(_b[event__0] + _b[event__1] + _b[event__2] + _b[event__3] + _b[event__4] + _b[event__5])
-
-* Post-medio (6 a 12)
-lincom (1/7)*(_b[event__6] + _b[event__7] + _b[event__8] + _b[event__9] + ///
-              _b[event__10] + _b[event__11] + _b[event__12])
-
-* Post-tardío (13 a 18)
-lincom (1/6)*(_b[event__13] + _b[event__14] + _b[event__15] + ///
-              _b[event__16] + _b[event__17] + _b[event__18])
-
-
-
-
-*******************************************************************
-* 2.e Estimate causal effects (CSDID) (several agreements)
-*******************************************************************
+* Baseline quarterly
 {
+csdid2 log_best_q, ivar(conflict_id) tvar(qtr) gvar(first_agreement_q) notyet method(dripw) cluster(isocode_num)
 
-csdid2 log_best, ivar(conflict_id_stacked) tvar(year_mo_numeric) gvar(group_var_agreement) notyet method(dripw) cluster(conflict_id)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+estat event, window(-6 6) wboot plot
+graph rename Graph g_q_baseline, replace
+graph export "`outdir'/event_quarterly_baseline.png", as(png) replace name(g_q_baseline)
 
+csdid2_estat cevent, revent(1/6) wboot
+_collect_cevent_wboot `ph' "q_baseline_1to6"
 }
 
+* Conflict age in quarters (now start_tm is %tm and survives collapse)
+gen int start_q = qofd(dofm(start_tm))
+format start_q %tq
+gen int conflict_age_q = qtr - start_q
 
-*******************************************************************
-* 2.d Estimate causal effects (CSDID) (several agreements w weights)
-*******************************************************************
+*---------------------------------------------------------------*
+* Conflict age dummies (bins) in quarters
+*---------------------------------------------------------------*
+cap drop conflict_age_bin
+gen byte conflict_age_bin = .
+
+* Ejemplo de bins: 0-1q (0-6m), 2-3q (6-12m), 4-5q (12-18m),
+* 6-7q (18-24m), 8-9q (24-30m), 10+ (30m+)
+replace conflict_age_bin = 1 if inrange(conflict_age_q, 0, 1)
+replace conflict_age_bin = 2 if inrange(conflict_age_q, 2, 3)
+replace conflict_age_bin = 3 if inrange(conflict_age_q, 4, 5)
+replace conflict_age_bin = 4 if inrange(conflict_age_q, 6, 7)
+replace conflict_age_bin = 5 if inrange(conflict_age_q, 8, 9)
+replace conflict_age_bin = 6 if conflict_age_q >= 10 & conflict_age_q < .
+
+label define agebin_q ///
+    1 "0-6m" ///
+    2 "6-12m" ///
+    3 "12-18m" ///
+    4 "18-24m" ///
+    5 "24-30m" ///
+    6 "30m+"
+label values conflict_age_bin agebin_q
+
+* check
+tab conflict_age_bin, missing
+
+
+* Adding control: conflict_age (quarterly)
 {
-csdid2 log_best [pw=weight], ivar(conflict_id_stacked) tvar(year_mo_numeric) gvar(group_var_agreement) notyet method(dripw) cluster(conflict_id)
-estat event, window(-18 18) wboot
-estat event,  window(-18 18) wboot plot
-csdid2_estat  event,  window(-18 18)
+csdid2 log_best_q i.conflict_age_bin, ivar(conflict_id) tvar(qtr) gvar(first_agreement_q) notyet method(dripw) cluster(isocode_num)
+	
+estat event, window(-6 6) wboot plot
+graph rename Graph g_q_age, replace
+graph export "`outdir'/event_quarterly_age.png", as(png) replace name(g_q_age)
+
+csdid2_estat cevent, revent(1/6) wboot
+_collect_cevent_wboot `ph' "q_baseline_1to6_age"
 }
+
+}
+
+
+
+*******************************************************************
+* 4) Close collector + export cevent results
+*******************************************************************
+postclose `ph'
+
+use `results_cevent', clear
+order spec att se lb ub pval
+sort spec
+
+export delimited using "`outdir'/cevent_att_1_18_wboot.csv", replace
+
+
