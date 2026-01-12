@@ -28,7 +28,7 @@ if _rc{
 clear all
 set more off
 
-local indir  "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/data/output/conflict_level"
+local indir  "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/1_agreements_violence/agreements_violence/data/output/conflict_level"
 local outdir "/Users/luciasauer/Library/CloudStorage/GoogleDrive-lucia.sauer@bse.eu/Mi unidad/EconAI/agreements_violence/src/4_results/event_study/conflict_level/first_agreement/"
 
 import delimited using "`indir'/conflict_panel.csv", bindquote(strict) maxquotedrows(unlimited)  clear
