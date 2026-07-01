@@ -1,146 +1,113 @@
 <h1 align="center">Agreements and Violence</h1>
 
-
 <p align="center">
   <b>Principal Investigators:</b> Laura Mayoral · Hannes Müller · Dominic Rohner · Christopher Rauh <br>
-  <b>Research Assistant:</b> Lucia Sauer <br>
-
+  <b>Research Assistant:</b> Lucia Sauer
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.12-blue?logo=python" alt="Python Badge">
   <img src="https://img.shields.io/badge/Stata-17-blue" alt="Stata Badge">
-  <img src="https://img.shields.io/badge/Pixi-virtual_env-orange" alt="Pixi Badge">
+  <img src="https://img.shields.io/badge/uv-venv-orange" alt="uv Badge">
 </p>
 
-  
 ---
 
 ## Overview
 
-This project constructs country-month and conflict-month panels combining conflict, peace agreement, and macroeconomic data to analyze the relationship between peace agreements and subsequent violence.
+Do peace agreements reduce violence — and why do so few conflicts produce them?
 
-> **Research question:** How do peace agreements affect violence dynamics at the country-month and conflict-month levels?
+This project estimates the causal effect of **first peace agreements** on conflict fatalities using a staggered difference-in-differences design, and studies the determinants of agreement formation through a **Fearon (1995) bargaining framework**.
 
+> **Data:** 201 armed conflicts · 1989–2024 · conflict × month panel  
+> **Agreements:** PA-X v9 (71 conflicts ever sign; 130 never do)  
+> **Fatalities:** UCDP GED v25.1
+
+---
+
+## Research Design
+
+### Part I — Causal Effect of Agreements on Violence
+
+**Treatment:** The *first* peace agreement signed in each conflict (PA-X), which marks entry into the peace process.
+
+**Activity filter:** Conflicts must have ≥ 12 battle deaths in the quarterly window (two quarters before the agreement + the agreement quarter). This yields **66 treated conflicts** out of 71 that ever sign; 5 are reclassified as never-treated due to near-zero pre-agreement violence.
+
+**Estimator:** Callaway and Sant'Anna (2021) doubly robust DiD (`csdid2`, `drimp`), with not-yet-treated and never-treated conflicts as the comparison group. Panel collapsed to **quarterly frequency**; event window ±8 quarters.
+
+```math
+ATT(g,t) = \mathbb{E}[Y_{it}(g) - Y_{it}(0) \mid G_i = g]
+```
+
+**Main results — quarterly CSDID (outcome: ln fatalities + 1)**
+
+| Specification | Pre-avg ATT | Post-avg ATT | SE | p |
+|:--|--:|--:|--:|:--|
+| CS-1: Unconditional | −0.183 | **−1.132** | 0.395 | < 0.01 |
+| CS-2: Doubly robust | −0.037 | **−0.969** | 0.466 | < 0.05 |
+
+The estimated post-treatment average effect of **−1.0 log points** (≈ 63% reduction in fatalities) is robust across quarterly and semi-annual aggregation, and is pre-trend-free.
+
+<div align="center" style="display: flex; justify-content: center; gap: 20px; margin: 16px 0;">
+  <div style="text-align: center;">
+    <img src="src/3_causal_effect_estimation/3_0_csdid/results/csdid_event_qtr_nocov.png" width="440">
+    <p><em>CS-1: Unconditional</em></p>
+  </div>
+  <div style="text-align: center;">
+    <img src="src/3_causal_effect_estimation/3_0_csdid/results/csdid_event_qtr_cov.png" width="440">
+    <p><em>CS-2: Doubly robust (pre-violence + conflict age)</em></p>
+  </div>
+</div>
+
+---
+
+### Part II — Why Do So Few Conflicts Reach Agreements?
+
+We classify conflicts along two Fearon (1995) friction dimensions and test whether these predict agreement formation and timing.
+
+| Friction | Proxy | Prediction |
+|:--|:--|:--|
+| **Commitment problem (CP)** | Weak institutions (V-Dem PCA index) | Less likely to ever sign |
+| **Information asymmetry (IA)** | Prior fighting experience (UCDP Dyadic, δ = 0.95) | Sign earlier when resolved |
+
+**H1** — CP-dominant conflicts less likely to sign → cross-sectional logit (N = 201)  
+**H2** — IA-dominant conflicts sign earlier → discrete-time ClogLog hazard model on conflict-month spell  
+**H3** — Larger ATT for IA-dominant conflicts → separate C&SA event studies by quadrant  
+
+---
 
 ## Repository Structure
 
-
-```js
+```
 agreements_violence/
 │
 ├── data/
-│   ├── input/                      # Raw data sources
-│   │   ├── distance/
-│   │   ├── external_support/
-│   │   ├── gdp_pc/
-│   │   ├── isocodes/
-│   │   ├── pax/
-│   │   ├── trade/
-│   │   ├── ucdp/
-│   │   └── un/
-│   └── output/                     # Final panels and derived datasets
+│   ├── input/                      # UCDP, PA-X, V-Dem, World Bank, CEPII, UN
+│   └── output/
+│       ├── conflict_level/         # conflict_panel.csv (and quarterly/semester)
+│       └── country_level/          # country_panel.csv
 │
 ├── src/
-│   ├── 1_data_generation/          # Ingestion, harmonization, panel build
-│   ├── 2_data_analysis/            # Descriptive analysis
-│   ├── 3_causal_effect_estimation/
-│   │   ├── 3_1_event_study/         # Event-study design and CSDID
-│   │   └── 3_2_IV/                  # IV strategy and 2SLS
-│   └── 4_results/                  # Tables, figures, results synthesis
+│   ├── 1_data_generation/          # Panel construction notebooks + codebooks
+│   ├── 2_data_analysis/            # EDA and descriptive statistics
+│   ├── 3_0_csdid/                  # Main estimator (Callaway–Sant'Anna)
+│   └── 5_survival_analysis/        # Bargaining proxies, hazard model
 │
 ├── reports/                        # Research notes and drafts
 ├── pyproject.toml
-├── uv.lock
 └── README.md
 ```
+<!-- 
 ---
 
-## Identification Strategy and Main Results
+## Data Sources
 
-### **Treatment Definition**
-Agreements are classified as **ceasefires** either by their **stage** or by explicit **ceasefire provisions**.
-
-### **1) Event-Study (CSDID)**
-
-We construct **36-month windows** centered on treatment at **t = 18** for treated units using the tool `window_generator.py` from the country and conflict panel datasets. Control windows are **clean of treatment** and randomly matched (up to **5 controls per treated window**). We estimate dynamic effects using **CSDID**, with wild bootstrap standard errors clustered at isocode.
-
-**Specification (event-study):**
-```math
-y_{i,t} = \alpha_i + \lambda_t + \sum_{k \neq -1}\beta_k \cdot \mathbf{1}[t - T_i = k] + \varepsilon_{i,t}
-```
-
-
-#### Main Results - Conflict Level
-
-<div style="display: flex; justify-content: center; gap: 20px;">
-
-  <div style="text-align: center;">
-    <img src="src/4_results/event_study/conflict_level/random_matching/ceasfire_agreements_mentions/18_1/eventstudy_baseline.png" width="400">
-    <p><em>Conflict Level - Baseline specification</em></p>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="src/4_results/event_study/conflict_level/random_matching/ceasfire_agreements_mentions/18_1/eventstudy_control_y_pre6.png" width="400">
-    <p><em>Conflict Level - Controlling pre treatment violence</em></p>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="src/4_results/event_study/conflict_level/random_matching/ceasfire_agreements_mentions/18_1/eventstudy_baseline_quarterly.png" width="400">
-    <p><em>Conflict Quarter Level Aggregation</em></p>
-  </div>
-
-</div>
-
-**ATT Summary — Conflict Level**
-
-| Estimator |Treated_w | Control_w| Coefficient | Std. Error |  p-value | 95% CI |
-|:--|--:|--:|--:|--:|--:|:--|
-| Monthly (baseline) | 99 | 495 | -0.46  | 0.25  |    0.071  |  [-0.976, 0.041]
-| Monthly +  $\bar{Y}_{-6,-1}$ controls | 99 | 495 | -0.362  | 0.273   | 0.184   | [0.896, 0.172]
-| Quarterly outcome | 99 | 495 | -0.687  | 0.218  |  0.002  |  [-1.115, -0.260]
-
-
-
-
-#### Main Results - Country Level
-
-<div style="display: flex; justify-content: center; gap: 20px;">
-
-  <div style="text-align: center;">
-    <img src="src/4_results/event_study/country_level/random_matching/ceasfire_agreements_mentions/18_1/eventstudy_baseline.png" width="400">
-    <p><em>Country Level - Baseline specification</em></p>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="src/4_results/event_study/country_level/random_matching/ceasfire_agreements_mentions/18_1/eventstudy_control_y_pre6.png" width="400">
-    <p><em>Country Level - Controlling pre treatment violence</em></p>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="src/4_results/event_study/country_level/random_matching/ceasfire_agreements_mentions/18_1/eventstudy_baseline_quarterly.png" width="400">
-    <p><em>Country Quarter Level Aggregation</em></p>
-  </div>
-
-</div>
-
-**ATT Summary — Country Level**
-
-| Estimator |Treated_w | Control_w| Coefficient | Std. Error |  p-value | 95% CI |
-|:--|--:|--:|--:|--:|--:|:--|
-| Monthly (baseline) | 112 | 560 | -0.471  |  0.218  |     0.031  |  [-0.899, -0.043]
-| Monthly +  $\bar{Y}_{-6,-1}$ controls | 112 | 560 | 0.456  |  0.221  |  0.039    | [-0.889, -0.024]
-| Quarterly outcome | 112 | 560 | -0.402  | 0.220  |  0.068  |  [-0.834, 0.030]
-
- 
-   
-### **2) Instrumental Variables (2SLS)**
-
-#### 2.1 Agreements spillover (regional exposure)
-
-Captures exogenous exposure to agreement activity in nearby or economically connected countries weighting by regional/subregional distance and trade intensity (CEPII GeoDist, BACI). Countries embedded in dense regional networks face stronger diplomatic and normative pressures to adopt similar agreement patterns, increasing ceasefire probability.
-
-#### 2.2 UN voting similarity with UNSC
-Measures political alignment with UN Security Council members through UNGA roll‑call voting similarity, where greater alignment with UNSC members increases access to mediation, monitoring, and diplomatic leverage, raising the likelihood of ceasefire agreements.
-
-#### 2.3 External Support (UNSC involvement abroad)
-Captures shifts in UNSC members’ conflict involvement outside the focal country/region. When UNSC members are engaged in other conflicts, their attention and capacity for mediation shift, affecting the probability of ceasefire agreements in the focal country.
+| Source | Coverage | Key variables |
+|:--|:--|:--|
+| UCDP/PRIO Conflict v25.1 | 1946–2024 | `conflict_id`, incompatibility, type |
+| UCDP GED v25.1 | 1989–2024 | Fatalities (`best`), events, location |
+| UCDP Dyadic v25.1 | 1946–2024 | Dyad-level conflict; experience construction |
+| PA-X v9 | 1990–2023 | Agreement content, stage, type (71 conflicts) |
+| V-Dem v16 | 1789–2024 | Institutional quality; CP proxies |
+| World Bank GDP pc | 1960–2024 | GDP per capita |
+| CEPII GeoDist | — | Bilateral distances and trade |
+| UN GA Voting | 1946–2024 | UNGA roll-call alignment with UNSC members | -->

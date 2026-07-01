@@ -8,9 +8,11 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "country-converter" },
+    { name = "diff-diff" },
     { name = "geodatasets" },
     { name = "geopandas" },
     { name = "geopy" },
+    { name = "lifelines" },
     { name = "linearmodels" },
     { name = "matplotlib" },
     { name = "matplotlib-venn" },
@@ -20,6 +22,7 @@ dependencies = [
     { name = "panelsplit" },
     { name = "pip" },
     { name = "plotly" },
+    { name = "prettytable" },
     { name = "pyarrow" },
     { name = "pycountry" },
     { name = "pyreadstat" },
@@ -44,9 +47,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "country-converter", specifier = ">=1.3.1,<2" },
+    { name = "diff-diff", specifier = ">=2.6.0" },
     { name = "geodatasets", specifier = ">=2024.8.0,<2025" },
     { name = "geopandas", specifier = ">=1.1.1,<2" },
     { name = "geopy", specifier = ">=2.4.1,<3" },
+    { name = "lifelines", specifier = ">=0.30.3" },
     { name = "linearmodels", specifier = ">=6.1,<7" },
     { name = "matplotlib", specifier = ">=3.10.5,<4" },
     { name = "matplotlib-venn", specifier = ">=1.1.2" },
@@ -56,6 +61,7 @@ requires-dist = [
     { name = "panelsplit", specifier = ">=1.0.2,<2" },
     { name = "pip", specifier = ">=25.2,<26" },
     { name = "plotly", specifier = ">=6.3.0,<7" },
+    { name = "prettytable", specifier = ">=3.17.0" },
     { name = "pyarrow", specifier = ">=16.0.0,<17.0.0" },
     { name = "pycountry", specifier = ">=24.6.1,<25" },
     { name = "pyreadstat", specifier = ">=1.3.0,<2" },
@@ -171,6 +177,28 @@ sdist = { url = "https://files.pythonhosted.org/packages/6b/5c/685e6633917e101e5
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/2a/7cc015f5b9f5db42b7d48157e23356022889fc354a2813c15934b7cb5c0e/attrs-25.4.0-py3-none-any.whl", hash = "sha256:adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373", size = 67615, upload_time = "2025-10-06T13:54:43.17Z" },
 ]
+
+[[package]]
+name = "autograd"
+version = "1.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/67/1c/3c24ec03c8ba4decc742b1df5a10c52f98c84ca8797757f313e7bdcdf276/autograd-1.8.0.tar.gz", hash = "sha256:107374ded5b09fc8643ac925348c0369e7b0e73bbed9565ffd61b8fd04425683", size = 2562146, upload_time = "2025-05-05T12:49:02.502Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/ea/e16f0c423f7d83cf8b79cae9452040fb7b2e020c7439a167ee7c317de448/autograd-1.8.0-py3-none-any.whl", hash = "sha256:4ab9084294f814cf56c280adbe19612546a35574d67c574b04933c7d2ecb7d78", size = 51478, upload_time = "2025-05-05T12:49:00.585Z" },
+]
+
+[[package]]
+name = "autograd-gamma"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "autograd" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/85/ae/7f2031ea76140444b2453fa139041e5afd4a09fc5300cfefeb1103291f80/autograd-gamma-0.5.0.tar.gz", hash = "sha256:f27abb7b8bb9cffc8badcbf59f3fe44a9db39e124ecacf1992b6d952934ac9c4", size = 3952, upload_time = "2020-10-15T16:51:06.785Z" }
 
 [[package]]
 name = "babel"
@@ -395,6 +423,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/0f/d5/c66da9b79e5bdb124974bfe172b4daf3c984ebd9c2a06e2b8a4dc7331c72/defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69", size = 75520, upload_time = "2021-03-08T10:59:26.269Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/07/6c/aa3f2f849e01cb6a001cd8554a88d4c77c5c1a31c95bdf1cf9301e6d9ef4/defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61", size = 25604, upload_time = "2021-03-08T10:59:24.45Z" },
+]
+
+[[package]]
+name = "diff-diff"
+version = "2.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a7/90/336e692c8d813f7ea48faf874e9497d770ba8df73ee73ea0d478ec5b82f6/diff_diff-2.6.0.tar.gz", hash = "sha256:c25d2e5367c4fc230ff0c346b990b07a5e025ca78c4a597160e2e9b8ab93c54b", size = 345829, upload_time = "2026-02-22T18:45:15.598Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0d/f9/732890e01cfb528d6698ab1a75384c4dee52957a820e8d58343d92480cfd/diff_diff-2.6.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:a2527c80d6b7d7ea79c1166095499e4fc2046b630a157734708aba6faf19efda", size = 950886, upload_time = "2026-02-22T18:44:50.327Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/b1/b9070c33abfe350fe3bcd6d237a038fbdb49fa8c1bcfe8629474f6e1e533/diff_diff-2.6.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:30547b78dcf406a0982d12730697e4186a6080dbf22a338fea040a89d2dd2c5b", size = 13721191, upload_time = "2026-02-22T18:44:52.266Z" },
+    { url = "https://files.pythonhosted.org/packages/58/01/080b24b66038d91ad511e36e4b1ffd586007e361225b160179cc5447e8fb/diff_diff-2.6.0-cp311-cp311-win_amd64.whl", hash = "sha256:a0808eef8cfd7297e959c621f916d226ea92ab09ecddc37415f6dd2eacd4e7e1", size = 1220708, upload_time = "2026-02-22T18:44:54.676Z" },
 ]
 
 [[package]]
@@ -1054,6 +1098,24 @@ wheels = [
 ]
 
 [[package]]
+name = "lifelines"
+version = "0.30.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "autograd" },
+    { name = "autograd-gamma" },
+    { name = "formulaic" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a0/4b/f92ca958b11284f9e80075d6b80b8150a3a231edb55e73a42878f786a54a/lifelines-0.30.3.tar.gz", hash = "sha256:acd1e0ecada4280c7bb2948f39c760a0f9158a57d752c8ca29f984a86c698b7f", size = 690663, upload_time = "2026-03-05T16:54:44.365Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/fb/5ed80a8932630d4ae33af186a87008c9b48f02bc515380acc1a4b1fec162/lifelines-0.30.3-py3-none-any.whl", hash = "sha256:44802480a28d6cb836c7fea4a54ec0ba220eb31c6d7444589637a8bd66066e8c", size = 409055, upload_time = "2026-03-05T16:54:42.414Z" },
+]
+
+[[package]]
 name = "linearmodels"
 version = "6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1550,6 +1612,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/08/39/679ca9b26c7bb2999ff122d50faa301e49af82ca9c066ec061cfbc0c6784/pre_commit-4.2.0.tar.gz", hash = "sha256:601283b9757afd87d40c4c4a9b2b5de9637a8ea02eaff7adc2d0fb4e04841146", size = 193424, upload_time = "2025-03-18T21:35:20.987Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/74/a88bf1b1efeae488a0c0b7bdf71429c313722d1fc0f377537fbe554e6180/pre_commit-4.2.0-py2.py3-none-any.whl", hash = "sha256:a009ca7205f1eb497d10b845e52c838a98b6cdd2102a6c8e4540e94ee75c58bd", size = 220707, upload_time = "2025-03-18T21:35:19.343Z" },
+]
+
+[[package]]
+name = "prettytable"
+version = "3.17.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "wcwidth" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/79/45/b0847d88d6cfeb4413566738c8bbf1e1995fad3d42515327ff32cc1eb578/prettytable-3.17.0.tar.gz", hash = "sha256:59f2590776527f3c9e8cf9fe7b66dd215837cca96a9c39567414cbc632e8ddb0", size = 67892, upload_time = "2025-11-14T17:33:20.212Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/8c/83087ebc47ab0396ce092363001fa37c17153119ee282700c0713a195853/prettytable-3.17.0-py3-none-any.whl", hash = "sha256:aad69b294ddbe3e1f95ef8886a060ed1666a0b83018bbf56295f6f226c43d287", size = 34433, upload_time = "2025-11-14T17:33:19.093Z" },
 ]
 
 [[package]]

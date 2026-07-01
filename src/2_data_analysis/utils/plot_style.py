@@ -25,6 +25,7 @@ plt.rcParams.update(
         "xtick.labelsize": 8,  # X tick labels
         "ytick.labelsize": 8,  # Y tick labels
         "legend.fontsize": 8,  # Legend text size
+        "legend.frameon":    False,
         # === Figure settings ===
         "figure.figsize": (FIG_WIDTH_IN, FIG_HEIGHT_IN),  # Size in inches
         "figure.dpi": 300,  # High-res for export
@@ -43,5 +44,22 @@ plt.rcParams.update(
         "savefig.format": "svg",
         "savefig.bbox": "tight",  # Avoid extra whitespace
         "savefig.dpi": 300,  # High-res for export
+        "figure.facecolor":  "white",
+        "axes.facecolor":    "white",
+        "axes.spines.top":   False,
+        "axes.spines.right": False,
+        "axes.spines.left":  True,
+        "axes.spines.bottom":True,
+        "axes.linewidth":    0.6,
+        "axes.grid":         True,
+        "grid.color":        "#e0e0e0",
+        "grid.linewidth":    0.5,
+        "grid.alpha":        1.0,
+        #"font.family":       "serif",
+        #"axes.labelsize":    9,
+        #"xtick.labelsize":   8,
+        #"ytick.labelsize":   8,
+        #"legend.fontsize":   8,
+        
     }
 )

@@ -30,6 +30,9 @@ dependencies = [
     "upsetplot>=0.9.0",
     "matplotlib-venn>=1.1.2",
     "xlrd>=2.0.2",
+    "diff-diff>=2.6.0",
+    "prettytable>=3.17.0",
+    "lifelines>=0.30.3",
 ]
 
 # Development dependencies

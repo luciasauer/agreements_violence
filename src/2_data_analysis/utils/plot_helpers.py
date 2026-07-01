@@ -187,3 +187,281 @@ def plot_agreement_mediation_event_studies(
     return {
         "agreement": (summary_agree, valid_agreements),
     }
+
+
+def plot_agreement_mediation_event_studies_conflict(
+    df,
+    window=18,
+    min_gap_multiplier=1,
+    figsize=(12, 5),
+    sharey=False,
+    savepath=None,
+    treatment="agreement",
+    title="",
+):
+    df = df.copy()
+
+    # --- prepare integer-month index (cheap arithmetic) ---
+    df["year_mo"] = pd.to_datetime(df["year_mo"])
+    # ym_int = year * 12 + (month - 1), so Jan 1990 -> 1990*12 + 0
+    df["ym_int"] = df["year_mo"].dt.year * 12 + (df["year_mo"].dt.month - 1)
+
+    # quick dictionary of country panels to avoid repeated boolean indexing
+    groups = {iso: g.sort_values("ym_int") for iso, g in df.groupby("conflict_id")}
+
+    min_gap_months = int(min_gap_multiplier * window)
+
+    # helper: find valid (non-overlapping according to min_gap_months) events for a given flag column
+    def find_valid_events_first_per_window(flag_col):
+        events = df.loc[df[flag_col] == 1, ["conflict_id", "year_mo", "ym_int"]]
+        if events.empty:
+            return pd.DataFrame(columns=["conflict_id", "year_mo", "ym_int"])
+
+        events = events.sort_values(["conflict_id", "ym_int"])
+        valid = []
+
+        for iso, grp in events.groupby("conflict_id", sort=False):
+            last_kept = None
+            for _, r in grp.iterrows():
+                if last_kept is None or (r["ym_int"] - last_kept) > min_gap_months:
+                    valid.append(
+                        {
+                            "conflict_id": iso,
+                            "year_mo": r["year_mo"],
+                            "ym_int": int(r["ym_int"]),
+                        }
+                    )
+                    last_kept = r["ym_int"]
+
+        return pd.DataFrame(valid)
+
+    valid_agreements = find_valid_events_first_per_window(treatment)
+
+    # helper: align events and summarize mean + 95% CI
+    def align_and_summarize(valid_events):
+        aligned_list = []
+        if valid_events.empty:
+            return pd.DataFrame(
+                columns=["event_time", "mean_log", "std_log", "n", "se", "ci_lower", "ci_upper"]
+            )
+
+        for _, ev in valid_events.iterrows():
+            iso = ev["conflict_id"]
+            ev_ym = ev["ym_int"]
+            panel = groups.get(iso)
+            if panel is None:
+                continue
+            # vectorized event_time (months)
+            sub = panel.copy()
+            sub["event_time"] = sub["ym_int"] - ev_ym
+            sub = sub.loc[
+                (sub["event_time"] >= -window) & (sub["event_time"] <= window),
+                ["event_time", "log_best"],
+            ]
+            if not sub.empty:
+                aligned_list.append(sub)
+
+        if not aligned_list:
+            return pd.DataFrame(
+                columns=["event_time", "mean_log", "std_log", "n", "se", "ci_lower", "ci_upper"]
+            )
+
+        aligned_df = pd.concat(aligned_list, ignore_index=True)
+
+        summary = (
+            aligned_df.groupby("event_time")["log_best"]
+            .agg(["mean", "std", "count"])
+            .rename(columns={"mean": "mean_log", "std": "std_log", "count": "n"})
+            .reset_index()
+        )
+
+        summary["se"] = summary["std_log"] / np.sqrt(summary["n"])
+        summary["ci_lower"] = summary["mean_log"] - 1.96 * summary["se"]
+        summary["ci_upper"] = summary["mean_log"] + 1.96 * summary["se"]
+
+        summary = summary.sort_values("event_time").reset_index(drop=True)
+        return summary
+
+    summary_agree = align_and_summarize(valid_agreements)
+
+    # --- plotting ---
+    fig = plt.figure(figsize=figsize)
+    sns.lineplot(data=summary_agree, x="event_time", y="mean_log", color="black", linewidth=2)
+    plt.fill_between(
+        summary_agree["event_time"],
+        summary_agree["ci_lower"],
+        summary_agree["ci_upper"],
+        alpha=0.3,
+        color="gray",
+    )
+    plt.axvline(0, color="#90353B", linestyle="--", label=treatment)
+    plt.xlabel("months to treatment", fontsize=18)
+    plt.ylabel("avg fatalities (log)", fontsize=18)
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
+    # black spines
+    plt.gca().spines["left"].set_color("black")
+    plt.gca().spines["bottom"].set_color("black")
+    # no grid lines
+    plt.gca().grid(False)
+    plt.margins(x=0)
+    plt.legend(frameon=False, fontsize=18)
+
+    plt.tick_params(axis="x", labelsize=18)
+    plt.tick_params(axis="y", labelsize=18)
+    # add tick marks on the x axis internally
+    plt.gca().xaxis.set_ticks_position("bottom")
+    plt.gca().yaxis.set_ticks_position("left")
+    plt.title(title, fontsize=18, pad=12)
+    plt.tight_layout()
+    if savepath:
+        fig.savefig(savepath, bbox_inches="tight")
+    plt.show()
+
+    return {
+        "agreement": (summary_agree, valid_agreements),
+    }
+
+
+def plot_agreement_comparison_conflict(
+    df,
+    window=18,
+    min_gap_multiplier=1,
+    figsize=(14, 5),
+    savepath=None,
+    treatments=("agreement", "agreement_active"),
+    title="",
+):
+    df = df.copy()
+
+    df["year_mo"] = pd.to_datetime(df["year_mo"])
+    df["ym_int"] = df["year_mo"].dt.year * 12 + (df["year_mo"].dt.month - 1)
+
+    groups = {cid: g.sort_values("ym_int") for cid, g in df.groupby("conflict_id")}
+    min_gap_months = int(min_gap_multiplier * window)
+
+    def find_valid_events(flag_col):
+        events = df.loc[df[flag_col] == 1, ["conflict_id", "year_mo", "ym_int"]]
+        if events.empty:
+            return pd.DataFrame(columns=["conflict_id", "year_mo", "ym_int"])
+
+        events = events.sort_values(["conflict_id", "ym_int"])
+        valid = []
+
+        for cid, grp in events.groupby("conflict_id", sort=False):
+            last_kept = None
+            for _, r in grp.iterrows():
+                if last_kept is None or (r["ym_int"] - last_kept) > min_gap_months:
+                    valid.append({
+                        "conflict_id": cid,
+                        "year_mo": r["year_mo"],
+                        "ym_int": int(r["ym_int"]),
+                    })
+                    last_kept = r["ym_int"]
+
+        return pd.DataFrame(valid)
+
+    def align_and_summarize(valid_events):
+        aligned_list = []
+
+        for _, ev in valid_events.iterrows():
+            cid = ev["conflict_id"]
+            ev_ym = ev["ym_int"]
+            panel = groups.get(cid)
+
+            if panel is None:
+                continue
+
+            sub = panel.copy()
+            sub["event_time"] = sub["ym_int"] - ev_ym
+            sub = sub.loc[
+                (sub["event_time"] >= -window) & (sub["event_time"] <= window),
+                ["event_time", "log_best"],
+            ]
+
+            if not sub.empty:
+                aligned_list.append(sub)
+
+        if not aligned_list:
+            return pd.DataFrame()
+
+        aligned_df = pd.concat(aligned_list, ignore_index=True)
+
+        summary = (
+            aligned_df.groupby("event_time")["log_best"]
+            .agg(["mean", "std", "count"])
+            .rename(columns={"mean": "mean_log", "std": "std_log", "count": "n"})
+            .reset_index()
+        )
+
+        summary["se"] = summary["std_log"] / np.sqrt(summary["n"])
+        summary["ci_lower"] = summary["mean_log"] - 1.96 * summary["se"]
+        summary["ci_upper"] = summary["mean_log"] + 1.96 * summary["se"]
+
+        return summary.sort_values("event_time")
+
+    summaries = {
+        t: align_and_summarize(find_valid_events(t))
+        for t in treatments
+    }
+
+    # --- PLOT ---
+    fig, axes = plt.subplots(1, 2, figsize=figsize, sharey=True)
+
+    for ax, t in zip(axes, treatments):
+        s = summaries[t]
+
+        sns.lineplot(
+            data=s,
+            x="event_time",
+            y="mean_log",
+            color="black",
+            linewidth=2,
+            ax=ax,
+        )
+
+        ax.fill_between(
+            s["event_time"],
+            s["ci_lower"],
+            s["ci_upper"],
+            alpha=0.3,
+            color="gray",
+        )
+
+        ax.axvline(0, color="#90353B", linestyle="--", lw=2, label=t)
+        if t == treatments[0]:
+            ax.legend(loc="upper right", frameon=False, fontsize=22, )
+        else:
+            ax.legend(loc="upper right", frameon=False, fontsize=22)
+
+        # --- estética EXACTA ---
+        ax.set_xlabel("months to treatment", fontsize=22)
+        #ax.set_title(t, fontsize=18, pad=12)
+
+        ax.tick_params(axis="x", labelsize=22)
+        ax.tick_params(axis="y", labelsize=22)
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_color("black")
+        ax.spines["bottom"].set_color("black")
+
+        ax.grid(False)
+        ax.margins(x=0)
+
+        ax.xaxis.set_ticks_position("bottom")
+        ax.yaxis.set_ticks_position("left")
+
+    # solo un ylabel (como buen paper)
+    axes[0].set_ylabel("avg fatalities (log)", fontsize=22)
+
+
+    fig.suptitle(title, fontsize=22, y=0.98)
+
+    plt.tight_layout()
+
+    if savepath:
+        fig.savefig(savepath, bbox_inches="tight")
+
+    plt.show()
+
